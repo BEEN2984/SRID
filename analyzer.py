@@ -9,10 +9,6 @@ import DataManager
 from enums import EventType
 
 
-# ----------------------------
-# Models
-# ----------------------------
-
 class AlertType(Enum):
     # IP 관련 (1x)
     IP_FAIL_PW = 10
@@ -45,23 +41,19 @@ class Alert:
     last_alert_time: datetime
 
 
-# ----------------------------
 # Analyzer
-# ----------------------------
-
 class Analyzer:
     """
-    보안 이벤트 분석 엔진
+    Engine Structure
     - Dispatcher: EventType에 따라 적절한 핸들러 호출
     - Strategy: RULES 설정에 기반하여 임계치 및 심각도 결정
     - Alert Layer: (Target, AlertType) 쌍으로 중복 알람 방지 및 Cooldown 관리
     """
 
-    # 기본 유지보수 설정
     DEFAULT_TTL_SECONDS = 3600
     DEFAULT_COOLDOWN_SECONDS = 300
 
-    # 규칙 설정 (임계치, 윈도우, 심각도)
+    # RULES (threshold, window, severity)
     RULES = {
         ("ip", AlertType.IP_FAIL_PW):      {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "fail_count"},
         ("user", AlertType.USER_FAIL_PW):  {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "fail_count"},
@@ -77,7 +69,6 @@ class Analyzer:
     }
 
     def __init__(self):
-        # 알람 테이블: (대상, 알람유형)을 키로 사용하여 개별 관리
         self.alert_table_ip: Dict[Tuple[str, AlertType], Alert] = {}
         self.alert_table_user: Dict[Tuple[str, AlertType], Alert] = {}
         self.alert_tables = {
@@ -85,7 +76,7 @@ class Analyzer:
             "user": self.alert_table_user,
         }
 
-        # 이벤트 디스패처
+        # evnet dispatch
         self.handlers: Dict[EventType, Callable[..., None]] = {
             EventType.FAIL_PW: self._on_fail_pw,
             EventType.INVALID_USER: self._on_invalid_user,
@@ -93,10 +84,8 @@ class Analyzer:
             EventType.LOGIN_SUCCESS: self._on_login_success,
         }
 
-    # ----------------------------
+    # -----------------------------
     # Data Access Helpers
-    # ----------------------------
-
     def _dm(self):
         return getattr(DataManager, "dispatcher_data", None)
 
@@ -123,10 +112,11 @@ class Analyzer:
         except:
             return datetime.now()
 
-    # ----------------------------
-    # Core Logic Layer
-    # ----------------------------
 
+
+
+    # -----------------------------
+    # Core Logic Layer
     def _process_threshold_rule(self, scope: str, target: str, alert_type: AlertType):
         """공통 임계치 기반 탐지 로직"""
         if not target: return
@@ -172,11 +162,13 @@ class Analyzer:
             severity=severity,
             last_alert_time=event_time,
         )
+    # ----------------------------
+
+
+
 
     # ----------------------------
     # Event Handlers
-    # ----------------------------
-
     def _on_fail_pw(self, ip: Optional[str] = None, user: Optional[str] = None) -> None:
         if ip:
             self._process_threshold_rule("ip", ip, AlertType.IP_FAIL_PW)
@@ -209,11 +201,13 @@ class Analyzer:
             if stats and cfg and getattr(stats, "fail_count", 0) >= cfg["threshold"]:
                 evidence = f"Login success after {stats.fail_count} failed attempts."
                 self._raise_alert(scope, target, a_type, evidence, now, severity=cfg["severity"])
+    # ----------------------------
+
+
+
 
     # ----------------------------
     # Public API
-    # ----------------------------
-
     def check_alert(self, recent_update_ip=None, recent_update_user=None) -> None:
         if recent_update_ip:
             target, et = recent_update_ip
