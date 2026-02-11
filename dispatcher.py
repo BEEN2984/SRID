@@ -1,6 +1,8 @@
 from collections import deque
 from datetime import datetime
+from typing import Tuple
 import parser
+from enums import EventType
 
 # 장기간 보관되는 데이터 
 
@@ -9,6 +11,8 @@ class Dispatcher():
     def __init__(self):
         self.IP_table :dict[str, IPStats]= {}
         self.User_table :dict[str, UserStats]= {}
+        self.Recent_Update_IP : tuple[str, EventType] = None
+        self.Recent_Update_User : tuple[str, EventType] = None
 
     def Clean(self, ttl_seconds: int = 3600):
         # 3600s 마다 실행을 메인에 넣기
@@ -26,23 +30,22 @@ class Dispatcher():
 
     def add_event(self, event:parser.RawLogEvent):
         window = 300
-        if event.event_type == parser.EventType.FAIL_PW:
-            UserStats.add_event(event, window)
+        # if event.event_type == parser.EventType.FAIL_PW:
+        #     UserStats.add_event(event, window)
+        # IPStats.add_event(event,window)
 
-        IPStats.add_event(event,window)
-
+        # 1. Update or Create new IPstat
         if event.ip not in self.IP_table:
-            # 처음 보는 IP라면 새로 생성
             self.IP_table[event.ip] = IPStats(event.ip, event.timestamp)
-        self.IP_table[event.ip].add_event(event, window)
+        self.IP_table[event.ip]._add_event(event, window)
+        self.Recent_Update_IP = (event.ip, event.event_type)
 
-        # 2. 유저 기반 통계 업데이트 (비밀번호 실패 시에만)
-        if event.event_type == parser.EventType.FAIL_PW and event.user != "unknown":
-            # 없으면 생성
+        # 2. Update or create UserStats only when the EventType is FAIL_PW
+        if event.event_type == EventType.FAIL_PW and event.user != "unknown":
             self.User_table[event.user] = UserStats(event.user, event.timestamp)
-        self.User_table[event.user].add_event(event, window)
+        self.User_table[event.user]._add_event(event, window)
+        self.Recent_Update_User = (event.user, event.event_type)
 
-        
 
 
 class IPStats:
@@ -57,7 +60,7 @@ class IPStats:
         self.lastseen = timestamp
         self.event_history = deque()
 
-    def add_event(self, event:parser.RawLogEvent, window:int):
+    def _add_event(self, event:parser.RawLogEvent, window:int):
         self.event_history.append((event.timestamp, event.event_type))
         self.lastseen = self.event_history[-1][0]
 
@@ -68,9 +71,6 @@ class IPStats:
                 self.invalid_count += 1
             case parser.EventType.PREAUTH:
                 self.preauth_count += 1
-            case parser.EventType.LOGIN_SUCCESS:
-                # Alert!!!
-                return
 
         # Evict old events
         while self.event_history and (self.lastseen-self.event_history[0][0] > window):
@@ -98,7 +98,7 @@ class UserStats:
         # event_history = { ( time, ip) }
         self.event_history = deque()
     
-    def add_event(self, event:parser.RawLogEvent, window:int):
+    def _add_event(self, event:parser.RawLogEvent, window:int):
         self.event_history.append((event.timestamp, event.ip))
         self.lastseen = self.event_history[-1][0]
         self.fail_count += 1

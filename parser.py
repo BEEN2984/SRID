@@ -2,15 +2,7 @@
 import re
 from datetime import datetime
 from dataclasses import dataclass
-from enum import Enum
-
-
-# RawLogEvent
-class EventType(Enum):
-    FAIL_PW = 1
-    INVALID_USER = 2
-    PREAUTH = 3
-    LOGIN_SUCCESS = 4
+from enums import EventType
 
 @dataclass
 class RawLogEvent:
