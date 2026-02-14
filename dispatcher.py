@@ -1,6 +1,5 @@
 from collections import deque
 from datetime import datetime
-from typing import Tuple
 import parser
 from enums import EventType
 
@@ -30,9 +29,6 @@ class Dispatcher():
 
     def add_event(self, event:parser.RawLogEvent):
         window = 300
-        # if event.event_type == parser.EventType.FAIL_PW:
-        #     UserStats.add_event(event, window)
-        # IPStats.add_event(event,window)
 
         # 1. Update or Create new IPstat
         if event.ip not in self.IP_table:
@@ -42,9 +38,11 @@ class Dispatcher():
 
         # 2. Update or create UserStats only when the EventType is FAIL_PW
         if event.event_type == EventType.FAIL_PW and event.user != "unknown":
-            self.User_table[event.user] = UserStats(event.user, event.timestamp)
-        self.User_table[event.user]._add_event(event, window)
-        self.Recent_Update_User = (event.user, event.event_type)
+            if event.user not in self.User_table:
+                self.User_table[event.user] = UserStats(event.user, event.timestamp)
+            self.User_table[event.user]._add_event(event, window)
+            self.Recent_Update_User = (event.user, event.event_type)
+        else : self.Recent_Update_User = None
 
 
 
@@ -65,11 +63,11 @@ class IPStats:
         self.lastseen = self.event_history[-1][0]
 
         match event.event_type:
-            case parser.EventType.FAIL_PW:
+            case EventType.FAIL_PW:
                 self.fail_count += 1
-            case parser.EventType.INVALID_USER:
+            case EventType.INVALID_USER:
                 self.invalid_count += 1
-            case parser.EventType.PREAUTH:
+            case EventType.PREAUTH:
                 self.preauth_count += 1
 
         # Evict old events
@@ -78,11 +76,11 @@ class IPStats:
 
             # count 정리
             match evicted[1]:
-                case parser.EventType.FAIL_PW:
+                case EventType.FAIL_PW:
                     self.fail_count -= 1
-                case parser.EventType.INVALID_USER:
+                case EventType.INVALID_USER:
                     self.invalid_count -= 1
-                case parser.EventType.PREAUTH:
+                case EventType.PREAUTH:
                     self.preauth_count -= 1
 
         self.firstseen = self.event_history[0][0]

@@ -1,11 +1,16 @@
+import DataManager
 import parser
-import dispatcher
-import analyzer
 
-statsManager = dispatcher.Dispatcher()
+disp = DataManager.dispatcher_data
+ana = DataManager.alert_data
 
-log = ""
+def line(log):  
+    event = parser.Parse_line(log)
+    if not event : return
 
-rawlogevent = parser.Parse_line(log)
-statsManager.add_event(rawlogevent)
+    disp.add_event(event)  
+    ana.check_alert(disp.Recent_Update_IP, disp.Recent_Update_User,disp)  
+    
+
+
 

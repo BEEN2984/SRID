@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Callable, Dict, Optional, Any, Tuple
 
-import DataManager
 from enums import EventType
 
 
@@ -86,15 +85,10 @@ class Analyzer:
 
     # -----------------------------
     # Data Access Helpers
-    def _dm(self):
-        return getattr(DataManager, "dispatcher_data", None)
-
-    def _get_stats(self, scope: str, target: str):
-        dm = self._dm()
-        if not dm: return None
-        table_name = "IP_table" if scope == "ip" else "USER_table"
-        table = getattr(dm, table_name, None)
-        return self._safe_get(table, target)
+    def _get_stats(self, scope: str, target: str, dispatcher):
+        if not dispatcher: return None
+        table = dispatcher.IP_table if scope == "ip" else dispatcher.User_table
+        return table.get(target)
 
     @staticmethod
     def _safe_get(d: Any, key: str):
@@ -111,26 +105,24 @@ class Analyzer:
             return datetime.fromtimestamp(float(ts_or_dt))
         except:
             return datetime.now()
-
+    # -----------------------------
 
 
 
     # -----------------------------
     # Core Logic Layer
-    def _process_threshold_rule(self, scope: str, target: str, alert_type: AlertType):
-        """공통 임계치 기반 탐지 로직"""
+    def _process_threshold_rule(self, scope: str, target: str, alert_type: AlertType, dm):
         if not target: return
-        
         cfg = self.RULES.get((scope, alert_type))
         if not cfg: return
 
-        stats = self._get_stats(scope, target)
+        stats = self._get_stats(scope, target, dm)
         if not stats: return
 
         count = getattr(stats, cfg["field"], 0)
         if count >= cfg["threshold"]:
             lastseen = self._as_dt(getattr(stats, "lastseen", None))
-            window_m = cfg["window_s"] // 60
+            window_m = cfg["window_s"] 
             evidence = f"{target}: {count} {cfg['field']} detected (Window: {window_m}m)"
             self._raise_alert(scope, target, alert_type, evidence, lastseen, severity=cfg["severity"])
 
@@ -169,21 +161,21 @@ class Analyzer:
 
     # ----------------------------
     # Event Handlers
-    def _on_fail_pw(self, ip: Optional[str] = None, user: Optional[str] = None) -> None:
+    def _on_fail_pw(self, ip = None, user = None, dm = None) -> None:
         if ip:
-            self._process_threshold_rule("ip", ip, AlertType.IP_FAIL_PW)
+            self._process_threshold_rule("ip", ip, AlertType.IP_FAIL_PW, dm)
         if user:
-            self._process_threshold_rule("user", user, AlertType.USER_FAIL_PW)
+            self._process_threshold_rule("user", user, AlertType.USER_FAIL_PW, dm)
             if user.lower() == "root":
-                self._process_threshold_rule("user", user, AlertType.USER_ROOT_TRY)
+                self._process_threshold_rule("user", user, AlertType.USER_ROOT_TRY, dm)
 
-    def _on_invalid_user(self, ip: Optional[str] = None, user: Optional[str] = None) -> None:
-        self._process_threshold_rule("ip", ip, AlertType.IP_INVALID_USER)
+    def _on_invalid_user(self, ip = None, user = None, dm = None) -> None:
+        self._process_threshold_rule("ip", ip, AlertType.IP_INVALID_USER, dm)
 
-    def _on_preauth(self, ip: Optional[str] = None, user: Optional[str] = None) -> None:
-        self._process_threshold_rule("ip", ip, AlertType.IP_PREAUTH)
+    def _on_preauth(self, ip = None, user = None, dm = None) -> None:
+        self._process_threshold_rule("ip", ip, AlertType.IP_PREAUTH, dm)
 
-    def _on_login_success(self, ip: Optional[str] = None, user: Optional[str] = None) -> None:
+    def _on_login_success(self, ip = None, user = None, dm = None) -> None:
         now = datetime.now()
         
         # 1. Root 로그인 성공 체크
@@ -195,7 +187,7 @@ class Analyzer:
                                     ("user", user, AlertType.USER_BRUTEFORCE_SUCCESS)]:
             if not target: continue
             
-            stats = self._get_stats(scope, target)
+            stats = self._get_stats(scope, target, dm)
             cfg = self.RULES.get((scope, a_type))
             
             if stats and cfg and getattr(stats, "fail_count", 0) >= cfg["threshold"]:
@@ -208,7 +200,7 @@ class Analyzer:
 
     # ----------------------------
     # Public API
-    def check_alert(self, recent_update_ip=None, recent_update_user=None) -> None:
+    def check_alert(self, recent_update_ip=None, recent_update_user=None, dm=None) -> None:
         if recent_update_ip:
             target, et = recent_update_ip
             self.handlers.get(et, lambda **k: None)(ip=target, user=None)
