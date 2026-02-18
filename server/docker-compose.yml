@@ -1,0 +1,33 @@
+version: "3.8"                      # Compose 파일 포맷 버전
+
+services:                           # 실행할 컨테이너들을 정의하는 영역
+  detection:
+    build: ./detection              # ./detection 폴더 안의 Dockerfile로 이미지 빌드
+    container_name: srid-detection  # 컨테이너 이름
+    ports:
+      - "514:514/tcp"               # 호스트포트:컨테이너포트, syslog TCP 수신용, 내부 컨테이너 끼리는 ports 없어도 통신 가능
+    networks: [srid-net]            # srid-net 네트워크에 연결
+    volumes:
+      - ./logs:/var/log/remote      # 호스트의 ./logs 폴더를 컨테이너의 /var/log/remote에 연결
+      - ../code:/app                 # ./code가 컨테이너의 /app으로 들어감
+    working_dir: /app               # /app 을 바로 작동
+
+  target:
+    hostname: srid-target
+    build: ./target
+    container_name: srid-target
+    depends_on: [detection]         # detection 실행 후 target 실행
+    ports:
+      - "2222:22"       
+    networks: [srid-net]
+
+  attack:
+    build: ./attack
+    container_name: srid-attack
+    depends_on: [target]
+    networks: [srid-net]
+    tty: true                     # interacitve shell 유지
+
+networks:
+  srid-net:           # 사용자 정의 네트워크
+    driver: bridge    # 기본 docker의 가상 네트워크 방식

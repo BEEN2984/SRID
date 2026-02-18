@@ -51,15 +51,22 @@ def Parse_line(line):
         return None
 
     # data 담기
-    raw_ts = TimeChangeToStamp(m.group("timestamp"))
+    raw_ts = _time_change_to_stamp(m.group("timestamp"))
     raw_ip = m.group("ip")
     if raw_event in (EventType.LOGIN_SUCCESS, EventType.FAIL_PW):
         raw_user = m.group("user")
 
     return RawLogEvent(raw_ts, raw_ip, raw_user, raw_event)
 
+def Print_RawLogEvent(event):
+    print(
+        f"[EVENT] time={event.timestamp} "
+        f"ip={event.ip} "
+        f"user={event.user} "
+        f"type={event.event_type.name}"
+    )
 
-def TimeChangeToStamp(ts_str):
+def _time_change_to_stamp(ts_str):
     if not ts_str:
         return datetime.now().timestamp()
 

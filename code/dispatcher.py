@@ -44,6 +44,21 @@ class Dispatcher():
             self.Recent_Update_User = (event.user, event.event_type)
         else : self.Recent_Update_User = None
 
+    def print_state(self):
+        print("\n====== Dispatcher State ======")
+
+        print("\n-- IP Table --")
+        for ip, stat in self.IP_table.items():
+            print(stat)
+
+        print("\n-- User Table --")
+        for user, stat in self.User_table.items():
+            print(stat)
+
+        print("\nRecent_Update_IP:", self.Recent_Update_IP)
+        print("Recent_Update_User:", self.Recent_Update_User)
+        print("================================\n")
+
 
 
 class IPStats:
@@ -85,6 +100,15 @@ class IPStats:
 
         self.firstseen = self.event_history[0][0]
 
+    def __str__(self):
+        return (
+            f"[IPStats] ip={self.ip} "
+            f"fail={self.fail_count} "
+            f"invalid={self.invalid_count} "
+            f"preauth={self.preauth_count} "
+            f"firstseen={self.firstseen} "
+            f"lastseen={self.lastseen}"
+        )
 
 
 class UserStats:
@@ -107,3 +131,11 @@ class UserStats:
             self.fail_count -= 1
 
         self.firstseen = self.event_history[0][0]
+
+    def __str__(self):
+        return (
+            f"[UserStats] user={self.user} "
+            f"fail={self.fail_count} "
+            f"firstseen={self.firstseen} "
+            f"lastseen={self.lastseen}"
+        )

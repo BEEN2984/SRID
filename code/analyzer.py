@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Callable, Dict, Optional, Any, Tuple
-
+from utils import Color
 from enums import EventType
 
 
@@ -123,7 +123,7 @@ class Analyzer:
         if count >= cfg["threshold"]:
             lastseen = self._as_dt(getattr(stats, "lastseen", None))
             window_m = cfg["window_s"] 
-            evidence = f"{target}: {count} {cfg['field']} detected (Window: {window_m}m)"
+            evidence = f"{target}: {count} {cfg['field']} detected (Window: {window_m/60} m)"
             self._raise_alert(scope, target, alert_type, evidence, lastseen, severity=cfg["severity"])
 
     def _raise_alert(
@@ -147,13 +147,43 @@ class Analyzer:
         if existing and (event_time - existing.last_alert_time) < timedelta(seconds=cooldown_seconds):
             return
 
-        table[key] = Alert(
+        new_alert = Alert(
             alert_type=alert_type,
             target=target,
             evidence=evidence,
             severity=severity,
             last_alert_time=event_time,
         )
+        table[key] = new_alert
+        self._print_alert(new_alert)
+
+    
+    def _print_alert(self, alert: Alert):
+        
+        if alert.severity == Severity.CRITICAL:
+            color = Color.CRITICAL
+            symbol = "🚨 [CRITICAL]"
+        elif alert.severity == Severity.HIGH:
+            color = Color.ALERT
+            symbol = "🔥 [HIGH]"
+        elif alert.severity == Severity.MEDIUM:
+            color = Color.WARNING
+            symbol = "⚠️  [MEDIUM]"
+        else:
+            color = Color.EVENT
+            symbol = "ℹ️  [LOW]"
+
+        # 2. print formating
+        header = f"{color}{'='*60}{Color.RESET}"
+        footer = f"{color}{'='*60}{Color.RESET}"
+        
+        print(f"\n{header}")
+        print(f"{color}{symbol} SECURITY ALERT DETECTED{Color.RESET}")
+        print(f"{Color.SUCCESS}Time    :{Color.RESET} {alert.last_alert_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"{Color.SUCCESS}Type    :{Color.RESET} {alert.alert_type.name}")
+        print(f"{Color.SUCCESS}Target  :{Color.RESET} {Color.WARNING}{alert.target}{Color.RESET}")
+        print(f"{Color.SUCCESS}Evidence:{Color.RESET} {alert.evidence}")
+        print(f"{header}\n")
     # ----------------------------
 
 
@@ -203,11 +233,11 @@ class Analyzer:
     def check_alert(self, recent_update_ip=None, recent_update_user=None, dm=None) -> None:
         if recent_update_ip:
             target, et = recent_update_ip
-            self.handlers.get(et, lambda **k: None)(ip=target, user=None)
+            self.handlers.get(et, lambda **k: None)(ip=target, user=None,dm=dm)
 
         if recent_update_user:
             target, et = recent_update_user
-            self.handlers.get(et, lambda **k: None)(ip=None, user=target)
+            self.handlers.get(et, lambda **k: None)(ip=None, user=target, dm=dm)
 
     def clean(self, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
         now = datetime.now()
