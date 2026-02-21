@@ -1,5 +1,0 @@
-sridpass
-1234
-wrongpass
-qwer1234
-password
