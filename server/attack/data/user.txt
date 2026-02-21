@@ -1,0 +1,8 @@
+srid_ok
+srid_user1
+srid_user2
+srid_user3
+srid_user4
+srid_user5
+invalid_user_1
+invalid_user_2

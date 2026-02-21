@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y openssh-server rsyslog && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /run/sshd
 
-# 테스트 계정(데모용)
+# 테스트 계정
 RUN useradd -m -s /bin/bash testuser && echo "testuser:testpass" | chpasswd
 
 COPY sshd_config /etc/ssh/sshd_config

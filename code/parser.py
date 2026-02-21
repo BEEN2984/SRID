@@ -12,9 +12,8 @@ class RawLogEvent:
     event_type : EventType
 
 LOG_REGEX_USER_IP = re.compile(
-    r"(?P<timestamp>^[A-Z][a-z]{2}\s+\d+\s\d{2}:\d{2}:\d{2}).*?"                                    
-    r"(?:for\s+)?(?P<user>\S+)"       
-    r".*?from\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})"
+    r"(?P<timestamp>^[A-Z][a-z]{2}\s+\d+\s\d{2}:\d{2}:\d{2}).*?"
+    r"for\s+(?:invalid\s+user\s+)?(?P<user>\S+)\s+from\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})"
 )
 
 LOG_REGEX_IP = re.compile(
@@ -53,7 +52,7 @@ def Parse_line(line):
     # data 담기
     raw_ts = _time_change_to_stamp(m.group("timestamp"))
     raw_ip = m.group("ip")
-    if raw_event in (EventType.LOGIN_SUCCESS, EventType.FAIL_PW):
+    if raw_event in [EventType.LOGIN_SUCCESS, EventType.FAIL_PW]:
         raw_user = m.group("user")
 
     return RawLogEvent(raw_ts, raw_ip, raw_user, raw_event)

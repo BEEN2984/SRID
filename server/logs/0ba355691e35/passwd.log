@@ -1,0 +1,2 @@
+Feb 19 03:22:22 0ba355691e35 passwd[63]: pam_unix(passwd:chauthtok): password changed for test1
+Feb 19 03:22:42 0ba355691e35 passwd[71]: pam_unix(passwd:chauthtok): password changed for test2

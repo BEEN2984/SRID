@@ -1,0 +1,6 @@
+Feb 20 01:27:17 47189a155ad5 rsyslogd: warning during parsing file /etc/rsyslog.conf, on or before line 60: STOP is followed by unreachable statements!  [v8.2112.0 try https://www.rsyslog.com/e/2357 ]
+Feb 20 01:27:17 47189a155ad5 rsyslogd: imklog: cannot open kernel log (/proc/kmsg): Operation not permitted.
+Feb 20 01:27:17 47189a155ad5 rsyslogd: activation of module imklog failed [v8.2112.0 try https://www.rsyslog.com/e/2145 ]
+Feb 20 01:27:17 47189a155ad5 rsyslogd: rsyslogd's groupid changed to 102
+Feb 20 01:27:17 47189a155ad5 rsyslogd: rsyslogd's userid changed to 101
+Feb 20 01:27:17 47189a155ad5 rsyslogd: [origin software="rsyslogd" swVersion="8.2112.0" x-pid="9" x-info="https://www.rsyslog.com"] start

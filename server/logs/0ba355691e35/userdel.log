@@ -1,0 +1,6 @@
+Feb 19 08:14:14 0ba355691e35 userdel[31]: delete user 'test1'
+Feb 19 08:14:14 0ba355691e35 userdel[31]: removed group 'test1' owned by 'test1'
+Feb 19 08:14:14 0ba355691e35 userdel[31]: removed shadow group 'test1' owned by 'test1'
+Feb 19 08:14:19 0ba355691e35 userdel[39]: delete user 'test2'
+Feb 19 08:14:19 0ba355691e35 userdel[39]: removed group 'test2' owned by 'test2'
+Feb 19 08:14:19 0ba355691e35 userdel[39]: removed shadow group 'test2' owned by 'test2'

@@ -1,12 +1,11 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Callable, Dict, Optional, Any, Tuple
 from utils import Color
 from enums import EventType
-
+import textwrap
 
 class AlertType(Enum):
     # IP 관련 (1x)
@@ -49,8 +48,9 @@ class Analyzer:
     - Alert Layer: (Target, AlertType) 쌍으로 중복 알람 방지 및 Cooldown 관리
     """
 
+    DEFAULT_WINDOW_SECONDS = 300
     DEFAULT_TTL_SECONDS = 3600
-    DEFAULT_COOLDOWN_SECONDS = 300
+    DEFAULT_COOLDOWN_SECONDS = 120
 
     # RULES (threshold, window, severity)
     RULES = {
@@ -59,9 +59,11 @@ class Analyzer:
         
         ("ip", AlertType.IP_INVALID_USER): {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "invalid_count"},
         ("ip", AlertType.IP_PREAUTH):      {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "preauth_count"},
+        ("ip", AlertType.IP_ATTACK):      {"threshold": 20, "window_s": 300, "severity": Severity.HIGH, "field": ["fail_count", "invalid_count", "preauth_count"]},
 
         ("ip", AlertType.IP_BRUTEFORCE_SUCCESS):   {"threshold": 5, "window_s": 300, "severity": Severity.HIGH},
         ("user", AlertType.USER_BRUTEFORCE_SUCCESS): {"threshold": 5, "window_s": 300, "severity": Severity.HIGH},
+        ("user", AlertType.USER_MULTI_IP_TO_SINGLE_USER): {"threshold": 5, "window_s": 300, "severity": Severity.HIGH, "field": "unique_ip_count"},
 
         ("user", AlertType.USER_ROOT_TRY):     {"threshold": 1, "window_s": 60, "severity": Severity.HIGH, "field": "fail_count"},
         ("user", AlertType.USER_ROOT_SUCCESS): {"threshold": 1, "window_s": 60, "severity": Severity.CRITICAL},
@@ -114,17 +116,25 @@ class Analyzer:
     def _process_threshold_rule(self, scope: str, target: str, alert_type: AlertType, dm):
         if not target: return
         cfg = self.RULES.get((scope, alert_type))
-        if not cfg: return
 
+        if not cfg: return
         stats = self._get_stats(scope, target, dm)
+        
         if not stats: return
 
-        count = getattr(stats, cfg["field"], 0)
+        fields = cfg["field"]
+        if isinstance(fields, list):
+            count = sum(getattr(stats, field) for field in fields)
+            fields = ", ".join(fields[:-1]) + " and " + fields[-1]
+        elif isinstance(fields, str):
+            count = getattr(stats, fields)
+
         if count >= cfg["threshold"]:
             lastseen = self._as_dt(getattr(stats, "lastseen", None))
-            window_m = cfg["window_s"] 
-            evidence = f"{target}: {count} {cfg['field']} detected (Window: {window_m/60} m)"
+            window_s = cfg["window_s"] 
+            evidence = f"{target}: {count} {fields} detected (Window: {window_s/60} m)"
             self._raise_alert(scope, target, alert_type, evidence, lastseen, severity=cfg["severity"])
+
 
     def _raise_alert(
         self,
@@ -134,18 +144,25 @@ class Analyzer:
         evidence: str,
         event_time: datetime,
         cooldown_seconds: int = DEFAULT_COOLDOWN_SECONDS,
-        severity: Optional[Severity] = None,
+        severity: Severity = None,
     ) -> None:
+        
+
         table = self.alert_tables[scope]
         key = (target, alert_type)
-        
-        # 설정에 정의된 기본 Severity 적용
-        if severity is None:
-            severity = self.RULES.get((scope, alert_type), {}).get("severity", Severity.MEDIUM)
-
         existing = table.get(key)
-        if existing and (event_time - existing.last_alert_time) < timedelta(seconds=cooldown_seconds):
+
+        if existing:
+            diff = (event_time - existing.last_alert_time).total_seconds()
+            
+            if diff > cooldown_seconds:
+                print("쿨다운지나면 다시")
+                existing.last_alert_time = event_time
+                existing.evidence = evidence
+                self._print_alert(existing)
+                return
             return
+
 
         new_alert = Alert(
             alert_type=alert_type,
@@ -157,7 +174,6 @@ class Analyzer:
         table[key] = new_alert
         self._print_alert(new_alert)
 
-    
     def _print_alert(self, alert: Alert):
         
         if alert.severity == Severity.CRITICAL:
@@ -174,15 +190,24 @@ class Analyzer:
             symbol = "ℹ️  [LOW]"
 
         # 2. print formating
-        header = f"{color}{'='*60}{Color.RESET}"
-        footer = f"{color}{'='*60}{Color.RESET}"
-        
+        width = 60
+        header = f"{color}{'=' * width}{Color.RESET}"
+
         print(f"\n{header}")
         print(f"{color}{symbol} SECURITY ALERT DETECTED{Color.RESET}")
         print(f"{Color.SUCCESS}Time    :{Color.RESET} {alert.last_alert_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{Color.SUCCESS}Type    :{Color.RESET} {alert.alert_type.name}")
         print(f"{Color.SUCCESS}Target  :{Color.RESET} {Color.WARNING}{alert.target}{Color.RESET}")
-        print(f"{Color.SUCCESS}Evidence:{Color.RESET} {alert.evidence}")
+
+        indent = " "*11
+        wrapped = textwrap.fill(
+            alert.evidence,
+            width= width-11,
+            initial_indent="",
+            subsequent_indent=indent
+        )
+
+        print(f"{Color.SUCCESS}Evidence:{Color.RESET} {wrapped}")
         print(f"{header}\n")
     # ----------------------------
 
@@ -194,29 +219,33 @@ class Analyzer:
     def _on_fail_pw(self, ip = None, user = None, dm = None) -> None:
         if ip:
             self._process_threshold_rule("ip", ip, AlertType.IP_FAIL_PW, dm)
+            self._process_threshold_rule("ip", ip, AlertType.IP_ATTACK, dm)
+
         if user:
             self._process_threshold_rule("user", user, AlertType.USER_FAIL_PW, dm)
+            self._process_threshold_rule("user", user, AlertType.USER_MULTI_IP_TO_SINGLE_USER, dm)
+
             if user.lower() == "root":
                 self._process_threshold_rule("user", user, AlertType.USER_ROOT_TRY, dm)
 
     def _on_invalid_user(self, ip = None, user = None, dm = None) -> None:
         self._process_threshold_rule("ip", ip, AlertType.IP_INVALID_USER, dm)
+        self._process_threshold_rule("ip", ip, AlertType.IP_ATTACK, dm)
 
     def _on_preauth(self, ip = None, user = None, dm = None) -> None:
         self._process_threshold_rule("ip", ip, AlertType.IP_PREAUTH, dm)
+        self._process_threshold_rule("ip", ip, AlertType.IP_ATTACK, dm)
 
     def _on_login_success(self, ip = None, user = None, dm = None) -> None:
-        now = datetime.now()
-        
+        now = datetime.now()        
         # 1. Root 로그인 성공 체크
         if user and user.lower() == "root":
-            self._raise_alert("user", user, AlertType.USER_ROOT_SUCCESS, "Critical: Root login success", now)
+            self._raise_alert("user", user, AlertType.USER_ROOT_SUCCESS, "Critical: Root login success", now, self.DEFAULT_COOLDOWN_SECONDS, Severity.CRITICAL)
 
         # 2. 브루트포스 성공 여부 (IP 및 User 기준)
         for scope, target, a_type in [("ip", ip, AlertType.IP_BRUTEFORCE_SUCCESS), 
                                     ("user", user, AlertType.USER_BRUTEFORCE_SUCCESS)]:
             if not target: continue
-            
             stats = self._get_stats(scope, target, dm)
             cfg = self.RULES.get((scope, a_type))
             
@@ -238,6 +267,7 @@ class Analyzer:
         if recent_update_user:
             target, et = recent_update_user
             self.handlers.get(et, lambda **k: None)(ip=None, user=target, dm=dm)
+
 
     def clean(self, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
         now = datetime.now()
