@@ -52,7 +52,6 @@ class Analyzer:
     DEFAULT_TTL_SECONDS = 3600
     DEFAULT_COOLDOWN_SECONDS = 120
 
-    # RULES (threshold, window, severity)
     RULES = {
         ("ip", AlertType.IP_FAIL_PW):      {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "fail_count"},
         ("user", AlertType.USER_FAIL_PW):  {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "fail_count"},
@@ -135,7 +134,6 @@ class Analyzer:
             evidence = f"{target}: {count} {fields} detected (Window: {window_s/60} m)"
             self._raise_alert(scope, target, alert_type, evidence, lastseen, severity=cfg["severity"])
 
-
     def _raise_alert(
         self,
         scope: str,
@@ -213,7 +211,6 @@ class Analyzer:
 
 
 
-
     # ----------------------------
     # Event Handlers
     def _on_fail_pw(self, ip = None, user = None, dm = None) -> None:
@@ -253,7 +250,6 @@ class Analyzer:
                 evidence = f"Login success after {stats.fail_count} failed attempts."
                 self._raise_alert(scope, target, a_type, evidence, now, severity=cfg["severity"])
     # ----------------------------
-
 
 
 
