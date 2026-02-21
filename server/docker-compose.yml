@@ -23,15 +23,11 @@ services:                           # 실행할 컨테이너들을 정의하는 
 
   attack:
     build: ./attack
-    # container_name: srid-attack  # 여러 개를 띄울 때는 고정 이름을 지워야 합니다.
     deploy:
-      replicas: 5                 # 공격자 컨테이너 3개 생성
+      replicas: 5 
     depends_on: [target]
     networks: [srid-net]
     tty: true
-    volumes:
-      - ./attack/data/user.txt:/data/user.txt:ro
-      - ./attack/data/pass.txt:/data/pass.txt:ro
     cap_add:
       - NET_ADMIN
 
