@@ -1,4 +1,0 @@
-Feb 20 05:30:15 srid-target passwd[236]: pam_unix(passwd:chauthtok): password changed for root
-Feb 20 05:32:36 srid-target passwd[247]: pam_unix(passwd:chauthtok): password changed for root
-Feb 20 05:33:56 srid-target passwd[256]: pam_unix(passwd:chauthtok): password changed for root
-Feb 20 05:41:49 srid-target passwd[294]: pam_unix(passwd:chauthtok): password changed for root

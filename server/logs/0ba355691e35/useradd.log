@@ -1,4 +1,0 @@
-Feb 19 03:21:50 0ba355691e35 useradd[55]: new group: name=test1, GID=1000
-Feb 19 03:21:50 0ba355691e35 useradd[55]: new user: name=test1, UID=1000, GID=1000, home=/home/test1, shell=/bin/sh, from=/dev/pts/0
-Feb 19 03:22:32 0ba355691e35 useradd[64]: new group: name=test2, GID=1001
-Feb 19 03:22:32 0ba355691e35 useradd[64]: new user: name=test2, UID=1001, GID=1001, home=/home/test2, shell=/bin/sh, from=/dev/pts/0
