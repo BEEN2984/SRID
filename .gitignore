@@ -1,1 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.env/
+.env
+
+# macOS
 .DS_Store
+
+# Runtime Data
+logs/
+data/
+*.log
+
+# Attack Test Files
+pass.txt
+
+# Docker
+*.pid
+*.sock
+
+# IDE
+.vscode/
+.idea/
