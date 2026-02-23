@@ -8,7 +8,8 @@ print("main.py run")
 disp = dispatcher_data
 ana = alert_data
 LOG_PATH = "/var/log/remote/srid-target/sshd.log"
-
+CLEAN_INTERVAL_S = 1800
+TTL_SECONDS = 3600
 
 def log_line(log):  
     event = Parse_line(log)
@@ -25,12 +26,24 @@ def run_realtime_monitor(log_path="/var/log/remote/srid-target/sshd.log"):
         print(f"Waiting for log file: {log_path}...")
         time.sleep(2)
 
+    last_clean_ts = time.time()
+
     print(f"Monitoring started: {log_path}")
     
     with open(log_path, "r") as f:
         f.seek(0, os.SEEK_END)
         
         while True:
+            now = time.time()
+            if now - last_clean_ts >= CLEAN_INTERVAL_S:
+                try:
+                    disp.Clean(ttl_s=TTL_SECONDS)
+                    ana.clean(ttl_s=TTL_SECONDS)
+                except Exception as e:
+                    print(f"[clean] warning: {e}")
+                finally:
+                    last_clean_ts = now
+
             line_content = f.readline()
             if not line_content:
                 time.sleep(0.1)
@@ -39,10 +52,5 @@ def run_realtime_monitor(log_path="/var/log/remote/srid-target/sshd.log"):
             # print(f"New Log: {line_content.strip()}") 
             log_line(line_content)
 
-def clean_table(disp, ana):
-    disp.Clean()
-
-
-run_realtime_monitor()
-
-
+if __name__ == "__main__":
+    run_realtime_monitor()

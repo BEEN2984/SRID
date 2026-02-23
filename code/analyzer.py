@@ -41,13 +41,6 @@ class Alert:
 
 # Analyzer
 class Analyzer:
-    """
-    Engine Structure
-    - Dispatcher: EventType에 따라 적절한 핸들러 호출
-    - Strategy: RULES 설정에 기반하여 임계치 및 심각도 결정
-    - Alert Layer: (Target, AlertType) 쌍으로 중복 알람 방지 및 Cooldown 관리
-    """
-
     DEFAULT_WINDOW_SECONDS = 300
     DEFAULT_TTL_SECONDS = 3600
     DEFAULT_COOLDOWN_SECONDS = 120
@@ -57,15 +50,15 @@ class Analyzer:
         ("user", AlertType.USER_FAIL_PW):  {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "fail_count"},
         
         ("ip", AlertType.IP_INVALID_USER): {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "invalid_count"},
-        ("ip", AlertType.IP_PREAUTH):      {"threshold": 5, "window_s": 300, "severity": Severity.MEDIUM, "field": "preauth_count"},
+        ("ip", AlertType.IP_PREAUTH):      {"threshold": 10, "window_s": 300, "severity": Severity.MEDIUM, "field": "preauth_count"},
         ("ip", AlertType.IP_ATTACK):      {"threshold": 20, "window_s": 300, "severity": Severity.HIGH, "field": ["fail_count", "invalid_count", "preauth_count"]},
 
-        ("ip", AlertType.IP_BRUTEFORCE_SUCCESS):   {"threshold": 5, "window_s": 300, "severity": Severity.HIGH},
-        ("user", AlertType.USER_BRUTEFORCE_SUCCESS): {"threshold": 5, "window_s": 300, "severity": Severity.HIGH},
+        ("ip", AlertType.IP_BRUTEFORCE_SUCCESS):   {"threshold": 10, "window_s": 300, "severity": Severity.HIGH},
+        ("user", AlertType.USER_BRUTEFORCE_SUCCESS): {"threshold": 10, "window_s": 300, "severity": Severity.HIGH},
         ("user", AlertType.USER_MULTI_IP_TO_SINGLE_USER): {"threshold": 5, "window_s": 300, "severity": Severity.HIGH, "field": "unique_ip_count"},
 
-        ("user", AlertType.USER_ROOT_TRY):     {"threshold": 1, "window_s": 60, "severity": Severity.HIGH, "field": "fail_count"},
-        ("user", AlertType.USER_ROOT_SUCCESS): {"threshold": 1, "window_s": 60, "severity": Severity.CRITICAL},
+        ("user", AlertType.USER_ROOT_TRY):     {"threshold": 1, "window_s": 3600, "severity": Severity.HIGH, "field": "fail_count"},
+        ("user", AlertType.USER_ROOT_SUCCESS): {"threshold": 1, "window_s": 3600, "severity": Severity.CRITICAL},
     }
 
     def __init__(self):
@@ -144,7 +137,6 @@ class Analyzer:
         cooldown_seconds: int = DEFAULT_COOLDOWN_SECONDS,
         severity: Severity = None,
     ) -> None:
-        
 
         table = self.alert_tables[scope]
         key = (target, alert_type)
@@ -154,13 +146,11 @@ class Analyzer:
             diff = (event_time - existing.last_alert_time).total_seconds()
             
             if diff > cooldown_seconds:
-                print("쿨다운지나면 다시")
                 existing.last_alert_time = event_time
                 existing.evidence = evidence
                 self._print_alert(existing)
                 return
             return
-
 
         new_alert = Alert(
             alert_type=alert_type,
@@ -264,10 +254,9 @@ class Analyzer:
             target, et = recent_update_user
             self.handlers.get(et, lambda **k: None)(ip=None, user=target, dm=dm)
 
-
-    def clean(self, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
+    def clean(self, ttl_s: int = DEFAULT_TTL_SECONDS) -> None:
         now = datetime.now()
-        ttl = timedelta(seconds=ttl_seconds)
+        ttl = timedelta(seconds=ttl_s)
         for table in self.alert_tables.values():
             expired_keys = [k for k, v in table.items() if (now - v.last_alert_time) > ttl]
             for k in expired_keys:
