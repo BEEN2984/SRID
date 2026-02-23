@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+rm -f /var/run/rsyslogd.pid
 mkdir -p /var/log/remote
 rsyslogd
-exec python3 /app/main.py
+tail -f /dev/null
