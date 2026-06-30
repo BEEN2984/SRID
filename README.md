@@ -81,6 +81,47 @@ Docker Compose containers:
 
 ## How to Run
 
+### 1. Build and start the containers
+
 ```bash
 docker compose up --build
+```
+
+### 2. Run the detection server
+
+Open a new terminal and enter the detection server container.
+
+```bash
+docker exec -it srid-detection /bin/bash
+```
+
+Then run the main script.
+
+```bash
+python3 main.py
+```
+
+### 3. Run the attack scenario
+
+Open another terminal and enter the attack server container.
+
+```bash
+docker exec -it srid-attack /bin/bash
+```
+
+Run Hydra to generate SSH login attempts against the target server.
+
+```bash
+hydra -L data/user.txt -P data/pass.txt ssh://srid-target
+```
+
+### 4. Check the detection result
+
+The detection server monitors the SSH log file and prints an alert when repeated authentication failures are detected.
+
+```text
+[MEDIUM] SECURITY ALERT DETECTED
+Type    : IP_FAIL_PW
+Target  : 172.xx.xx.xx
+Evidence: 172.xx.xx.xx: 5 fail_count detected
 ```
