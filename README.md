@@ -101,12 +101,19 @@ Then run the main script.
 python3 main.py
 ```
 
-### 3. Run the attack scenario
+#### 3. Run the attack scenario
 
-Open another terminal and enter the attack server container.
+Open another terminal and check the running containers.
 
 ```bash
-docker exec -it srid-attack /bin/bash
+docker ps
+```
+
+Enter one of the attack server containers.  
+The container name may vary, such as `server-attack-1`, `server-attack-2`, or `server-attack-3`.
+
+```bash
+docker exec -it <attack-container-name> /bin/bash
 ```
 
 Run Hydra to generate SSH login attempts against the target server.
